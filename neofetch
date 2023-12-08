@@ -73,6 +73,7 @@ print_info() {
     info "CPU" cpu
     info "GPU" gpu
     info "Memory" memory
+    info "DMR" dmr
 
     # info "GPU Driver" gpu_driver  # Linux/macOS only
     # info "Disk" disk
@@ -1889,6 +1890,24 @@ get_de() {
     de_run=1
 }
 
+get_dmr() {
+
+    # If function was run, stop here.
+    ((dm_run == 1)) && return
+
+    path="/etc/systemd/system/display-manager.service"
+    if [[ -L $path ]]; then
+        target="$(readlink "/etc/systemd/system/display-manager.service")"
+
+        if [[ $target ]]; then
+            dmr=$(echo "${target##*/}" | cut -d'.' -f1)
+        fi
+    fi
+    prin "DMR : $dmr"
+
+    dm_run=1
+}
+
 get_wm() {
     # If function was run, stop here.
     ((wm_run == 1)) && return
@@ -1898,10 +1917,13 @@ get_wm() {
         *)         ps_flags=(-e) ;;
     esac
 
+    # Akshay : check if the file is owned by the user
     if [[ -O "${XDG_RUNTIME_DIR}/${WAYLAND_DISPLAY:-wayland-0}" ]]; then
+        # Akshay : retrieve the process ID associated with a specific file or directory
         if tmp_pid="$(lsof -t "${XDG_RUNTIME_DIR}/${WAYLAND_DISPLAY:-wayland-0}" 2>&1)" ||
            tmp_pid="$(fuser   "${XDG_RUNTIME_DIR}/${WAYLAND_DISPLAY:-wayland-0}" 2>&1)"; then
             wm="$(ps -p "${tmp_pid}" -ho comm=)"
+        # Akshay : if sudo access is required for lsof or fuser, then try this...
         else
             # lsof may not exist, or may need root on some systems. Similarly fuser.
             # On those systems we search for a list of known window managers, this can mistakenly
@@ -5466,6 +5488,7 @@ get_args() {
                     info "GPU" gpu
                     info "GPU Driver" gpu_driver
                     info "Memory" memory
+                    info "DMR" dmr
 
                     info "Disk" disk
                     info "Battery" battery
@@ -11566,6 +11589,7 @@ main() {
     image_backend
     get_cache_dir
     old_functions
+    ((dm_run != 1)) && get_dmr
     print_info
     dynamic_prompt
 
